@@ -13,7 +13,6 @@ describe('PostMessages component', function() {
 
         self.component = $(fixture.el).find('[data-dough-component="PostMessages"]');
         self.postMessages = new PostMessages(self.component);
-        self.message = self.postMessages.message; 
 
         done();
       }, done);
@@ -32,25 +31,54 @@ describe('PostMessages component', function() {
 
       addEventsSpy.restore(); 
     });
+
+    it('Calls the masResize method if method config is true', function() {
+      var masResizeSpy = sinon.spy(this.postMessages, '_masResize'); 
+
+      this.postMessages.init(); 
+      expect(masResizeSpy.called).to.be.false; 
+
+      this.postMessages.config.masresize = true; 
+      this.postMessages.init(); 
+      expect(masResizeSpy.calledOnce).to.be.true; 
+
+      masResizeSpy.restore();
+    }); 
   });
 
+  describe('masResize method', function() {
+    it('Calls the updateMessage method with the correct argument on body resize', function() {
+      var clock = sinon.useFakeTimers();
+      var updateMessageSpy = sinon.spy(this.postMessages, '_updateMessage');
+
+      this.postMessages._masResize();
+      clock.tick(200);
+
+      expect(updateMessageSpy.callCount).to.equal(1); 
+      assert(updateMessageSpy.calledWith('masResize', 1200)); 
+
+      clock.restore(); 
+      updateMessageSpy.restore(); 
+    }); 
+  }); 
+
   describe('On clicking a jump link', function() {
-    it('Calls the updateMessage method with the correct argument', function() {
+    it('Calls the updateMessage method with the correct arguments', function() {
       var updateMessageSpy = sinon.spy(this.postMessages, '_updateMessage'); 
 
       this.postMessages._addEvents();
 
       this.component.find('#jump_link_1').trigger('click');
       expect(updateMessageSpy.callCount).to.equal(1);
-      assert(updateMessageSpy.calledWith('content_1'));
+      assert(updateMessageSpy.calledWith('jumpLink', 'content_1'));
 
       this.component.find('#jump_link_2').trigger('click');
       expect(updateMessageSpy.callCount).to.equal(2);
-      assert(updateMessageSpy.calledWith('content_2'));
+      assert(updateMessageSpy.calledWith('jumpLink', 'content_2'));
 
       this.component.find('#jump_link_3').trigger('click');
       expect(updateMessageSpy.callCount).to.equal(3);
-      assert(updateMessageSpy.calledWith('content_3'));
+      assert(updateMessageSpy.calledWith('jumpLink', 'content_3'));
 
       this.component.find('#external_link').trigger('click');
       expect(updateMessageSpy.callCount).to.equal(3);
@@ -63,34 +91,42 @@ describe('PostMessages component', function() {
   });
 
   describe('On calling the updateMessage method', function() {
-    it('Calls the getOffset method with the correct argument', function() {
+    it('Calls the getOffset method where required with the correct argument', function() {
       var getOffsetSpy = sinon.spy(this.postMessages, '_getOffset');
 
-      this.postMessages._updateMessage('content_1');
+      this.postMessages._updateMessage('jumpLink', 'content_1');
       expect(getOffsetSpy.callCount).to.equal(1);
       assert(getOffsetSpy.calledWith('content_1'));
 
-      this.postMessages._updateMessage('content_2');
+      this.postMessages._updateMessage('jumpLink', 'content_2');
       expect(getOffsetSpy.callCount).to.equal(2);
       assert(getOffsetSpy.calledWith('content_2'));
 
-      this.postMessages._updateMessage('content_3');
+      this.postMessages._updateMessage('jumpLink', 'content_3');
       expect(getOffsetSpy.callCount).to.equal(3);
       assert(getOffsetSpy.calledWith('content_3'));
+
+      this.postMessages._updateMessage('masResize', 1200);
+      expect(getOffsetSpy.callCount).to.equal(3);
 
       getOffsetSpy.restore(); 
     }); 
 
     it('Updates the message with the correct values', function() {
+      // For jumpLink event
       var getOffsetStub = sinon.stub(this.postMessages, '_getOffset');
 
       getOffsetStub.returns(120); 
-      this.postMessages._updateMessage('content_1');
+      this.postMessages._updateMessage('jumpLink', 'content_1');
 
-      expect(this.message.jumpLink.id).to.equal('content_1'); 
-      expect(this.message.jumpLink.offset).to.equal(120); 
+      expect(this.postMessages.message.jumpLink.id).to.equal('content_1'); 
+      expect(this.postMessages.message.jumpLink.offset).to.equal(120); 
 
       getOffsetStub.restore(); 
+
+      // For masResize event
+      this.postMessages._updateMessage('masResize', 1200);
+      expect(this.postMessages.message).to.equal('MASRESIZE-1200'); 
     }); 
 
     it('Calls the sendMessage method', function() {

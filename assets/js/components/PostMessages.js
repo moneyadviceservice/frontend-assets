@@ -8,12 +8,9 @@ define(['DoughBaseComponent'],
   'use strict';
 
   var PostMessages, 
-      defaultConfig = {}, 
-      message = {
-        jumpLink: {
-          id: '', 
-          offset: 0
-        }
+      message,
+      defaultConfig = {
+        masresize: false
       };
 
   PostMessages = function($el, config) {
@@ -30,29 +27,41 @@ define(['DoughBaseComponent'],
   PostMessages.componentName = 'PostMessages';
 
   /** 
-   * Adds listeners for click events to jump links
+   * Adds event listeners
    */
   PostMessages.prototype._addEvents = function() {
     var _this = this;
     var anchors = this.$el.find('a');
 
+    // Adds listeners for click events to jump links
     for (var anchor in anchors) {
       if (anchors[anchor].href && anchors[anchor].href.indexOf('#') > -1) {
         $(anchors[anchor]).on('click', function(e) {
           e.preventDefault();
-          _this._updateMessage(e.target.href.split('#')[1]);
+          _this._updateMessage('jumpLink', e.target.href.split('#')[1]);
         })
       }
     };
   }
 
   /**
-   * Updates the message with vertical offset value for the supplied element
+   * Updates the message with required value
    */
-  PostMessages.prototype._updateMessage = function(id) {
-    var offset = this._getOffset(id);
-    this.message.jumpLink.id = id;
-    this.message.jumpLink.offset = offset;
+  PostMessages.prototype._updateMessage = function(event, value) {
+    if (event === 'masResize') {
+      // Updates the message with height value for document
+      this.message = '';
+      this.message = 'MASRESIZE-' + value;
+    } else if (event === 'jumpLink') {
+      // Updates the message with vertical offset value for the supplied element
+      var offset = this._getOffset(value);
+
+      this.message = {}; 
+      this.message['jumpLink'] = {
+        id: value,
+        offset: offset
+      };
+    }
 
     this._sendMessage(); 
   }
@@ -70,7 +79,32 @@ define(['DoughBaseComponent'],
    * Sends the message
    */
   PostMessages.prototype._sendMessage = function() {
+    console.log('message: ', this.message); 
+    
     window.parent.postMessage(this.message, '*');
+  }
+
+  /**
+   * A method to listen for changes to the document height
+   */
+  PostMessages.prototype._masResize = function(masResize) {
+    var _this = this, 
+        currentHeight = 0, 
+        timer,
+        bodyNode = document.body, 
+        minFrameHeight = 250;
+
+    timer = setInterval(function() {
+      var documentHeight = Math.max(
+        bodyNode.scrollHeight,
+        minFrameHeight
+      );
+
+      if (documentHeight !== currentHeight) {
+        currentHeight = documentHeight;
+        _this._updateMessage('masResize', documentHeight);
+      }
+    }, 200);
   }
 
   /**
@@ -78,7 +112,11 @@ define(['DoughBaseComponent'],
   */
   PostMessages.prototype.init = function(initialised) {
     this._initialisedSuccess(initialised);
-    this._addEvents(); 
+    this._addEvents();
+
+    if (this.config.masresize) {
+      this._masResize(); 
+    }
   };
 
   return PostMessages;
